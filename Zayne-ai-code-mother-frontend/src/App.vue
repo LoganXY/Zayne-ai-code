@@ -1,11 +1,19 @@
-<script setup lang="ts"></script>
-
 <template>
-  <h1>You did it!</h1>
-  <p>
-    Visit <a href="https://vuejs.org/" target="_blank" rel="noopener">vuejs.org</a> to read the
-    documentation
-  </p>
+  <a-config-provider :locale="zhCN">
+    <BasicLayout />
+  </a-config-provider>
 </template>
 
-<style scoped></style>
+<script setup lang="ts">
+import BasicLayout from '@/layouts/BasicLayout.vue'
+import { healthCheck } from '@/api/healthController.ts'
+import zhCN from 'ant-design-vue/es/locale/zh_CN'
+import dayjs from 'dayjs'
+import 'dayjs/locale/zh-cn'
+
+dayjs.locale('zh-cn')
+
+healthCheck().then((res) => {
+  console.log(res)
+})
+</script>
