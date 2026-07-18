@@ -36,8 +36,8 @@ public class UserController {
     @Resource
     private UserService userService;
 
-    @PostMapping("register")
-    public BaseResponse<Long> register (@RequestBody UserRegisterRequest userRegisterRequest) {
+    @PostMapping("/register")
+    public BaseResponse<Long> register(@RequestBody UserRegisterRequest userRegisterRequest) {
         ThrowUtils.throwIf(userRegisterRequest == null, ErrorCode.PARAMS_ERROR);
         String userAccount = userRegisterRequest.getUserAccount();
         String userPassword = userRegisterRequest.getUserPassword();
@@ -148,6 +148,24 @@ public class UserController {
         }
         User user = new User();
         BeanUtil.copyProperties(userUpdateRequest, user);
+        boolean result = userService.updateById(user);
+        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
+        return ResultUtils.success(true);
+    }
+
+    /**
+     * 更新当前登录用户信息
+     */
+    @PostMapping("/update/my")
+    public BaseResponse<Boolean> updateMyUser(@RequestBody UserUpdateMyRequest userUpdateMyRequest,
+                                              HttpServletRequest request) {
+        ThrowUtils.throwIf(userUpdateMyRequest == null, ErrorCode.PARAMS_ERROR);
+        User loginUser = userService.getLoginUser(request);
+        User user = new User();
+        user.setId(loginUser.getId());
+        user.setUserName(userUpdateMyRequest.getUserName());
+        user.setUserAvatar(userUpdateMyRequest.getUserAvatar());
+        user.setUserProfile(userUpdateMyRequest.getUserProfile());
         boolean result = userService.updateById(user);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
         return ResultUtils.success(true);
