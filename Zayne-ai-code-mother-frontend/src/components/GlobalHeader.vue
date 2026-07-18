@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { MenuOutlined } from '@ant-design/icons-vue'
-import type { MenuProps } from 'ant-design-vue'
+import { LogoutOutlined, MenuOutlined, UserOutlined } from '@ant-design/icons-vue'
+import { type MenuProps, message } from 'ant-design-vue'
 import { menuItems, type MenuItemConfig } from '@/config/menu'
 import { SITE_TITLE } from '@/config/site'
+import { useLoginUserStore } from '@/stores/loginUser.ts'
+import { userLogout } from '@/api/userController.ts'
+
+const loginUserStore = useLoginUserStore()
 
 const props = withDefaults(
   defineProps<{
@@ -21,22 +25,35 @@ const router = useRouter()
 const selectedKeys = ref<string[]>([])
 const drawerVisible = ref(false)
 
+/**
+ * 按登录用户角色过滤菜单
+ * - access 为 admin 时，仅管理员可见
+ */
+const visibleMenuItems = computed(() => {
+  return props.items.filter((item) => {
+    if (item.access === 'admin') {
+      return loginUserStore.loginUser.userRole === 'admin'
+    }
+    return true
+  })
+})
+
 const menuOptions = computed<MenuProps['items']>(() =>
-  props.items.map((item) => ({
+  visibleMenuItems.value.map((item) => ({
     key: item.key,
     label: item.label,
   })),
 )
 
 const syncSelectedKeys = () => {
-  const matched = props.items.find((item) => item.path === route.path)
+  const matched = visibleMenuItems.value.find((item) => item.path === route.path)
   selectedKeys.value = matched ? [matched.key] : []
 }
 
-watch(() => route.path, syncSelectedKeys, { immediate: true })
+watch([() => route.path, visibleMenuItems], syncSelectedKeys, { immediate: true })
 
 const navigateTo = (key: string) => {
-  const target = props.items.find((item) => item.key === key)
+  const target = visibleMenuItems.value.find((item) => item.key === key)
   if (target) {
     router.push(target.path)
   }
@@ -51,8 +68,20 @@ const handleDrawerMenuClick: MenuProps['onClick'] = ({ key }) => {
   drawerVisible.value = false
 }
 
-const handleLogin = () => {
-  // TODO: 接入登录逻辑
+/**
+ * 用户注销
+ */
+const doLogout = async () => {
+  const res = await userLogout()
+  if (res.data.code === 0) {
+    loginUserStore.setLoginUser({
+      userName: '未登录',
+    })
+    message.success('退出登录成功')
+    await router.push('/user/login')
+  } else {
+    message.error('退出登录失败，' + res.data.message)
+  }
 }
 </script>
 
@@ -78,16 +107,31 @@ const handleLogin = () => {
         <a-button class="mobile-menu-btn" type="text" @click="drawerVisible = true">
           <MenuOutlined />
         </a-button>
-        <a-button type="primary" @click="handleLogin">登录</a-button>
+
+        <a-dropdown v-if="loginUserStore.loginUser.id">
+          <a class="user-info" @click.prevent>
+            <a-avatar :src="loginUserStore.loginUser.userAvatar" :size="32" />
+            <span class="user-name">{{ loginUserStore.loginUser.userName ?? '无名' }}</span>
+          </a>
+          <template #overlay>
+            <a-menu>
+              <a-menu-item key="profile" @click="router.push('/user/profile')">
+                <UserOutlined />
+                个人中心
+              </a-menu-item>
+              <a-menu-item key="logout" @click="doLogout">
+                <LogoutOutlined />
+                退出登录
+              </a-menu-item>
+            </a-menu>
+          </template>
+        </a-dropdown>
+
+        <a-button v-else type="primary" href="/user/login">登录</a-button>
       </div>
     </div>
 
-    <a-drawer
-      v-model:open="drawerVisible"
-      placement="left"
-      title="导航菜单"
-      :width="280"
-    >
+    <a-drawer v-model:open="drawerVisible" placement="left" title="导航菜单" :width="280">
       <a-menu
         v-model:selected-keys="selectedKeys"
         mode="inline"
@@ -157,7 +201,9 @@ const handleLogin = () => {
 }
 
 .desktop-menu :deep(.ant-menu-item) {
-  transition: color 0.2s, background-color 0.2s;
+  transition:
+    color 0.2s,
+    background-color 0.2s;
 }
 
 .desktop-menu :deep(.ant-menu-item:hover) {
@@ -180,6 +226,21 @@ const handleLogin = () => {
   align-items: center;
   gap: 8px;
   margin-left: 16px;
+}
+
+.user-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(0, 0, 0, 0.88);
+  cursor: pointer;
+}
+
+.user-name {
+  max-width: 100px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .mobile-menu-btn {
