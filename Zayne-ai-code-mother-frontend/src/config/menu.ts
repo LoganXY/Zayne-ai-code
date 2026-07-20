@@ -23,4 +23,10 @@ export const menuItems: MenuItemConfig[] = [
     path: '/admin/userManage',
     access: 'admin',
   },
+  {
+    key: 'appManage',
+    label: '应用管理',
+    path: '/admin/appManage',
+    access: 'admin',
+  },
 ]

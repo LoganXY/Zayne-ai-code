@@ -1,1 +1,1 @@
-export const SITE_TITLE = 'Zayne AI 零代码应用生成平台'
+export const SITE_TITLE = 'Zayne 应用生成'

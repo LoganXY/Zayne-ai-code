@@ -13,9 +13,12 @@ const loginUserStore = useLoginUserStore()
 const props = withDefaults(
   defineProps<{
     items?: MenuItemConfig[]
+    /** 主页等场景：透明背景，与页面渐变融合 */
+    blend?: boolean
   }>(),
   {
     items: () => menuItems,
+    blend: false,
   },
 )
 
@@ -86,11 +89,11 @@ const doLogout = async () => {
 </script>
 
 <template>
-  <a-layout-header class="global-header">
+  <a-layout-header class="global-header" :class="{ 'is-blend': blend }">
     <div class="header-inner">
       <div class="header-left">
         <RouterLink class="brand" to="/">
-          <img alt="logo" class="brand-logo" src="/logo.png" />
+          <img alt="logo" class="brand-logo" src="/mascot-icon-circle.png" />
           <span class="brand-title">{{ SITE_TITLE }}</span>
         </RouterLink>
 
@@ -153,6 +156,15 @@ const doLogout = async () => {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
+.global-header.is-blend {
+  background: transparent;
+  box-shadow: none;
+}
+
+.global-header.is-blend :deep(.ant-menu) {
+  background: transparent;
+}
+
 .header-inner {
   display: flex;
   align-items: center;
@@ -181,7 +193,8 @@ const doLogout = async () => {
 .brand-logo {
   width: 36px;
   height: 36px;
-  object-fit: contain;
+  object-fit: cover;
+  border-radius: 50%;
 }
 
 .brand-title {

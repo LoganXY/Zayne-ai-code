@@ -1,7 +1,16 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+withDefaults(
+  defineProps<{
+    transparent?: boolean
+  }>(),
+  {
+    transparent: false,
+  },
+)
+</script>
 
 <template>
-  <a-layout-footer class="global-footer">
+  <a-layout-footer class="global-footer" :class="{ 'is-transparent': transparent }">
     <div class="footer-inner">原创 by 程序员 Zayne</div>
   </a-layout-footer>
 </template>
@@ -13,6 +22,11 @@
   text-align: center;
   background: #fff;
   border-top: 1px solid #f0f0f0;
+}
+
+.global-footer.is-transparent {
+  background: transparent;
+  border-top: none;
 }
 
 .footer-inner {

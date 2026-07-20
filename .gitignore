@@ -2,6 +2,7 @@ HELP.md
 ### CUSTOM ###
 application-local.yml
 tmp
+Zayne-ai-code-mother-frontend/public
 
 target/
 .mvn/wrapper/maven-wrapper.jar
