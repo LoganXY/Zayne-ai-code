@@ -5,6 +5,7 @@ import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
 import com.zayne.zayneaicodemother.ai.model.HtmlCodeResult;
 import com.zayne.zayneaicodemother.ai.model.MultiFileCodeResult;
+import com.zayne.zayneaicodemother.contant.AppConstant;
 import com.zayne.zayneaicodemother.model.enums.CodeGenTypeEnum;
 
 import java.io.File;
@@ -19,7 +20,7 @@ public class CodeFileSaver {
     /**
      * 文件保存根目录
      */
-    private static final String FILE_SAVE_ROOT_DIR = System.getProperty("user.dir") + "/tmp/code_output";
+    private static final String FILE_SAVE_ROOT_DIR = AppConstant.CODE_OUTPUT_ROOT_DIR;
 
     /**
      * 保存 HTML 网页代码
