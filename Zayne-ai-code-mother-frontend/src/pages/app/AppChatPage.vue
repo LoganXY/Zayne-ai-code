@@ -139,6 +139,11 @@ const initPage = async (id: string) => {
     await appChat.maybeAutoSend()
   } else {
     await appChat.loadApp(id)
+    // 兜底：如果应用名是临时名称，触发 AI 命名
+    const app = currentApp.value
+    if (app?.appName && app.initPrompt && app.appName === app.initPrompt.substring(0, 12)) {
+      appChat.generateAndUpdateName(id)
+    }
   }
 }
 

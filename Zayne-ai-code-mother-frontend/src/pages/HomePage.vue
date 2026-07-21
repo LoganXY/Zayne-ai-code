@@ -36,6 +36,8 @@ const onSubmit = async () => {
     if (res.data.code === 0 && res.data.data != null) {
       const id = res.data.data
       appChat.prepareCreate(id, initPrompt)
+      // 异步生成 AI 名称
+      appChat.generateAndUpdateName(id)
       await router.push(`/app/chat/${id}`)
       void appList.fetchMyApps().catch(() => {})
     } else {

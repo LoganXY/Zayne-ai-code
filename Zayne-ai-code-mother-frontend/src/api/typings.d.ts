@@ -147,6 +147,10 @@ declare namespace API {
     id: number | string
   }
 
+  type generateAppNameParams = {
+    appId: number | string
+  }
+
   type getUserByIdParams = {
     id: number
   }

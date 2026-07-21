@@ -113,6 +113,7 @@ public class AppController {
         String appName = appAddRequest.getAppName();
         app.setAppName(StrUtil.isBlank(appName) ? StrUtil.sub(initPrompt, 0, 12) : appName);
         app.setInitPrompt(initPrompt);
+        app.setCover(appAddRequest.getCover());
         app.setUserId(loginUser.getId());
         // 暂时设置为多文件生成
         app.setCodeGenType(CodeGenTypeEnum.MULTI_FILE.getValue());
@@ -123,7 +124,22 @@ public class AppController {
     }
 
     /**
-     * 更新应用（用户仅可改自己应用的名称）
+     * AI 生成应用名称
+     *
+     * @param appId   应用 ID
+     * @param request HTTP 请求
+     * @return 生成的名称
+     */
+    @PostMapping("/generate-name/{appId}")
+    public BaseResponse<String> generateAppName(@PathVariable Long appId, HttpServletRequest request) {
+        ThrowUtils.throwIf(appId == null || appId <= 0, ErrorCode.PARAMS_ERROR, "应用 ID 错误");
+        User loginUser = userService.getLoginUser(request);
+        String generatedName = appService.generateAppName(appId, loginUser);
+        return ResultUtils.success(generatedName);
+    }
+
+    /**
+     * 更新应用（用户可改自己应用的名称、封面、优先级）
      *
      * @param appUpdateRequest 更新请求
      * @param request          HTTP 请求
@@ -146,6 +162,8 @@ public class AppController {
         App app = new App();
         app.setId(appUpdateRequest.getId());
         app.setAppName(appUpdateRequest.getAppName());
+        app.setCover(appUpdateRequest.getCover());
+        app.setPriority(appUpdateRequest.getPriority());
         // 设置编辑时间
         app.setEditTime(LocalDateTime.now());
         boolean result = appService.updateById(app);

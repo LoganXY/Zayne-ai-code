@@ -8,6 +8,7 @@ import cn.hutool.core.util.StrUtil;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import com.zayne.zayneaicodemother.contant.AppConstant;
+import com.zayne.zayneaicodemother.ai.AiCodeGeneratorService;
 import com.zayne.zayneaicodemother.core.AiCodeGeneratorFacade;
 import com.zayne.zayneaicodemother.exception.BusinessException;
 import com.zayne.zayneaicodemother.exception.ErrorCode;
@@ -46,6 +47,9 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
 
     @Resource
     private AiCodeGeneratorFacade aiCodeGeneratorFacade;
+
+    @Resource
+    private AiCodeGeneratorService aiCodeGeneratorService;
 
     @Override
     public Flux<String> chatToGenCode(Long appId, String message, User loginUser) {
@@ -174,6 +178,36 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
             appVO.setUser(userVOMap.get(app.getUserId()));
             return appVO;
         }).collect(Collectors.toList());
+    }
+
+    @Override
+    public String generateAppName(Long appId, User loginUser) {
+        // 查询应用
+        App app = this.getById(appId);
+        ThrowUtils.throwIf(app == null, ErrorCode.NOT_FOUND_ERROR, "应用不存在");
+        // 权限校验
+        if (!app.getUserId().equals(loginUser.getId())) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权限");
+        }
+        // 调用 AI 生成名称
+        String generatedName = aiCodeGeneratorService.generateAppName(app.getInitPrompt());
+        ThrowUtils.throwIf(StrUtil.isBlank(generatedName), ErrorCode.SYSTEM_ERROR, "AI 生成名称失败");
+        // 清理名称（去除可能的引号、空白和标点）
+        generatedName = generatedName.trim()
+                .replaceAll("[“”‘’]", "")
+                .replaceAll("\\p{Punct}", "");
+        // 截断过长名称
+        if (generatedName.length() > 8) {
+            generatedName = generatedName.substring(0, 8);
+        }
+        // 更新数据库
+        App updateApp = new App();
+        updateApp.setId(appId);
+        updateApp.setAppName(generatedName);
+        updateApp.setEditTime(LocalDateTime.now());
+        boolean updated = this.updateById(updateApp);
+        ThrowUtils.throwIf(!updated, ErrorCode.OPERATION_ERROR, "更新应用名称失败");
+        return generatedName;
     }
 
 }

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { message } from 'ant-design-vue'
-import { deployApp, getAppVoById } from '@/api/appController.ts'
+import { deployApp, generateAppName, getAppVoById } from '@/api/appController.ts'
 import { buildChatSseUrl, streamSse } from '@/utils/sse.ts'
 
 export type ChatRole = 'user' | 'ai'
@@ -130,6 +130,23 @@ export const useAppChatStore = defineStore('appChat', () => {
     }
   }
 
+  async function generateAndUpdateName(appId: number | string) {
+    try {
+      const res = await generateAppName({ appId })
+      if (res.data.code === 0 && res.data.data) {
+        const newName = res.data.data
+        if (currentApp.value && String(currentApp.value.id) === String(appId)) {
+          currentApp.value = { ...currentApp.value, appName: newName }
+        }
+        message.success(`应用名称已自动生成：${newName}`)
+        return newName
+      }
+    } catch {
+      // 静默失败，不影响主流程
+    }
+    return null
+  }
+
   async function deploy() {
     const appId = currentApp.value?.id
     if (appId == null) return
@@ -161,6 +178,7 @@ export const useAppChatStore = defineStore('appChat', () => {
     clearSession,
     sendMessage,
     maybeAutoSend,
+    generateAndUpdateName,
     deploy,
     previewSrc,
   }

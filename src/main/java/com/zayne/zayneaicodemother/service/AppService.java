@@ -58,4 +58,13 @@ public interface AppService extends IService<App> {
      * @return AppVO 列表
      */
     List<AppVO> getAppVOList(List<App> appList);
+
+    /**
+     * AI 生成应用名称
+     *
+     * @param appId     应用 ID
+     * @param loginUser 当前登录用户
+     * @return 生成的应用名称
+     */
+    String generateAppName(Long appId, User loginUser);
 }
