@@ -20,5 +20,10 @@ public class AppAddRequest implements Serializable {
      */
     private String appName;
 
+    /**
+     * 应用封面
+     */
+    private String cover;
+
     private static final long serialVersionUID = 1L;
 }

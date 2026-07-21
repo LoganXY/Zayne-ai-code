@@ -18,12 +18,16 @@ declare namespace API {
   type AppAddRequest = {
     initPrompt?: string
     appName?: string
+    cover?: string
   }
 
   type AppAdminUpdateRequest = {
     id?: number | string
     appName?: string
     cover?: string
+    initPrompt?: string
+    codeGenType?: string
+    deployKey?: string
     priority?: number
   }
 
@@ -49,6 +53,8 @@ declare namespace API {
   type AppUpdateRequest = {
     id?: number | string
     appName?: string
+    cover?: string
+    priority?: number
   }
 
   type AppVO = {

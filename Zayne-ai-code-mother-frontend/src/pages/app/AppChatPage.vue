@@ -1,23 +1,18 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { Modal, message } from 'ant-design-vue'
-import {
-  CloudUploadOutlined,
-  DeleteOutlined,
-  EditOutlined,
-  InfoCircleOutlined,
-} from '@ant-design/icons-vue'
+import { CloudUploadOutlined, InfoCircleOutlined } from '@ant-design/icons-vue'
 import { storeToRefs } from 'pinia'
 import { deleteApp, deleteAppByAdmin, getAppVoById } from '@/api/appController.ts'
+import AppDetailModal from '@/components/app/AppDetailModal.vue'
 import AppPromptBox from '@/components/app/AppPromptBox.vue'
 import ChatMessageList from '@/components/app/ChatMessageList.vue'
 import AppPreview from '@/components/app/AppPreview.vue'
+import { useRouteAppId } from '@/composables/useRouteAppId.ts'
 import { useAppChatStore } from '@/stores/appChat.ts'
 import { useLoginUserStore } from '@/stores/loginUser.ts'
-import { formatDateTime } from '@/utils/time.ts'
 
-const route = useRoute()
 const router = useRouter()
 const appChat = useAppChatStore()
 const loginUserStore = useLoginUserStore()
@@ -29,12 +24,7 @@ const deploying = ref(false)
 const detailOpen = ref(false)
 const deleting = ref(false)
 
-const appId = computed(() => {
-  const raw = route.params.id
-  const id = Array.isArray(raw) ? raw[0] : raw
-  // 保持字符串，避免 JavaScript Number 对大整数（雪花 ID）精度丢失
-  return id && String(id).trim() ? String(id) : ''
-})
+const appId = useRouteAppId()
 
 const previewSrc = computed(() => appChat.previewSrc())
 
@@ -139,7 +129,7 @@ const initPage = async (id: string) => {
     await appChat.maybeAutoSend()
   } else {
     await appChat.loadApp(id)
-    // 兜底：如果应用名是临时名称，触发 AI 命名
+    // 兜底：如果应用名称看起来像临时名（等于 initPrompt 前 12 字符），触发 AI 命名
     const app = currentApp.value
     if (app?.appName && app.initPrompt && app.appName === app.initPrompt.substring(0, 12)) {
       appChat.generateAndUpdateName(id)
@@ -189,7 +179,7 @@ watch(
         <div class="prompt-wrap">
           <AppPromptBox
             v-model="prompt"
-            placeholder="继续描述你想修改或新增的内容…"
+            placeholder="请描述你想生成的网站，越详细效果越好哦"
             :loading="streaming"
             :disabled="streaming"
             @submit="onSubmit"
@@ -201,43 +191,16 @@ watch(
       </div>
     </div>
 
-    <a-modal
+    <AppDetailModal
       v-model:open="detailOpen"
-      title="应用详情"
-      :footer="null"
-      :width="420"
-      destroy-on-close
-    >
-      <div class="detail-body">
-        <div class="detail-row">
-          <span class="detail-label">创建者：</span>
-          <div class="creator">
-            <a-avatar :src="creatorAvatar" :size="28">
-              {{ creatorName?.[0] || '无' }}
-            </a-avatar>
-            <span>{{ creatorName }}</span>
-          </div>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">创建时间：</span>
-          <span class="detail-value">{{ formatDateTime(currentApp?.createTime) }}</span>
-        </div>
-      </div>
-      <div class="detail-actions">
-        <a-button type="primary" @click="onModify">
-          <template #icon>
-            <EditOutlined />
-          </template>
-          修改
-        </a-button>
-        <a-button danger :loading="deleting" :disabled="!canManageApp" @click="onDelete">
-          <template #icon>
-            <DeleteOutlined />
-          </template>
-          删除
-        </a-button>
-      </div>
-    </a-modal>
+      :app="currentApp"
+      :creator-name="creatorName"
+      :creator-avatar="creatorAvatar"
+      :can-manage="canManageApp"
+      :deleting="deleting"
+      @edit="onModify"
+      @delete="onDelete"
+    />
   </div>
 </template>
 
@@ -305,40 +268,6 @@ watch(
   border-radius: 12px;
   border: 1px solid rgba(0, 0, 0, 0.06);
   overflow: hidden;
-}
-
-.detail-body {
-  padding: 8px 0 4px;
-}
-
-.detail-row {
-  display: flex;
-  align-items: center;
-  margin-bottom: 16px;
-  font-size: 14px;
-}
-
-.detail-label {
-  flex-shrink: 0;
-  color: rgba(0, 0, 0, 0.45);
-}
-
-.detail-value {
-  color: rgba(0, 0, 0, 0.88);
-}
-
-.creator {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: rgba(0, 0, 0, 0.88);
-}
-
-.detail-actions {
-  display: flex;
-  gap: 12px;
-  padding-top: 16px;
-  border-top: 1px solid #f0f0f0;
 }
 
 @media (max-width: 900px) {

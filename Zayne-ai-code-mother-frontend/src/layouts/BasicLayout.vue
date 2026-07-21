@@ -5,32 +5,28 @@ import GlobalFooter from '@/components/GlobalFooter.vue'
 import GlobalHeader from '@/components/GlobalHeader.vue'
 
 const route = useRoute()
-const isHome = computed(() => route.path === '/')
 const isChat = computed(() => route.path.startsWith('/app/chat'))
 </script>
 
 <template>
-  <a-layout class="basic-layout" :class="{ 'is-home': isHome, 'is-chat': isChat }">
-    <GlobalHeader :blend="isHome" />
+  <a-layout class="basic-layout" :class="{ 'is-chat': isChat }">
+    <GlobalHeader blend />
     <a-layout-content class="layout-content">
       <div class="content-inner">
         <RouterView />
       </div>
     </a-layout-content>
-    <GlobalFooter v-if="!isChat" :transparent="isHome" />
+    <GlobalFooter v-if="!isChat" transparent />
   </a-layout>
 </template>
 
 <style scoped>
 .basic-layout {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background: #f5f5f5;
-}
-
-/* 斜向：左上白 → 中间青绿/天蓝 → 右下白 */
-.basic-layout.is-home {
+  /* 斜向：左上白 → 中间青绿/天蓝 → 右下白 */
   background:
     linear-gradient(
       135deg,
@@ -44,7 +40,7 @@ const isChat = computed(() => route.path.startsWith('/app/chat'))
     );
 }
 
-.basic-layout.is-home::before {
+.basic-layout::before {
   position: absolute;
   inset: 0;
   z-index: 0;
@@ -56,12 +52,8 @@ const isChat = computed(() => route.path.startsWith('/app/chat'))
   mix-blend-mode: soft-light;
 }
 
-.basic-layout.is-home {
-  position: relative;
-}
-
-.basic-layout.is-home .layout-content,
-.basic-layout.is-home :deep(.global-footer) {
+.layout-content,
+:deep(.global-footer) {
   position: relative;
   z-index: 1;
 }
@@ -69,9 +61,6 @@ const isChat = computed(() => route.path.startsWith('/app/chat'))
 .layout-content {
   flex: 1;
   padding: 24px;
-}
-
-.basic-layout.is-home .layout-content {
   background: transparent;
 }
 

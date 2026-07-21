@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { message } from 'ant-design-vue'
 import { deployApp, generateAppName, getAppVoById } from '@/api/appController.ts'
 import { buildChatSseUrl, streamSse } from '@/utils/sse.ts'
+import { getPreviewSiteUrl } from '@/utils/deploy.ts'
 
 export type ChatRole = 'user' | 'ai'
 
@@ -162,7 +163,7 @@ export const useAppChatStore = defineStore('appChat', () => {
   function previewSrc(): string {
     const app = currentApp.value
     if (!app?.id || !app.codeGenType) return ''
-    return `http://localhost:8123/api/static/${app.codeGenType}_${app.id}/`
+    return getPreviewSiteUrl(app.codeGenType, app.id)
   }
 
   return {

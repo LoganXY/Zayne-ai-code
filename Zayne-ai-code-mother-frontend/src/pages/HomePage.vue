@@ -15,15 +15,45 @@ const appChat = useAppChatStore()
 const prompt = ref('')
 const creating = ref(false)
 
-const SUGGESTIONS = ['波普风电商页面', '企业网站', '电商运营后台', '暗黑话题社区'] as const
+const SUGGESTIONS = [
+  {
+    label: '个人作品集官网',
+    prompt:
+      '帮我生成一个个人作品集网站，包含首页自我介绍、项目作品展示网格、技能标签、关于我和联系表单。风格简洁现代，浅色背景，突出作品封面与简介，支持按类型筛选，适合设计师或前端开发者对外展示个人能力与经历。',
+  },
+  {
+    label: '餐饮门店官网',
+    prompt:
+      '生成一家中式餐厅的官方网站，包含首页大图轮播、招牌菜品推荐、门店地址与营业时间、在线预订座位表单以及顾客评价区。整体采用暖色调突出食欲感，布局清晰好找信息，并适配手机浏览，方便顾客快速了解并预约。',
+  },
+  {
+    label: '企业官网落地页',
+    prompt:
+      '做一个科技公司官网首页，包含顶部导航、产品核心卖点、客户案例展示、团队介绍以及底部联系我们模块。视觉偏商务蓝白配色，布局专业干净，突出信任感与行动按钮，适合作为公司品牌宣传与潜在客户转化落地页。',
+  },
+  {
+    label: '活动报名落地页',
+    prompt:
+      '制作一个线上公开课报名落地页，展示课程亮点、讲师介绍、详细课程大纲、学员真实评价和报名信息表单。强调报名截止时间与名额有限，主色用活力橙色，结构简洁有吸引力，方便用户快速了解课程并完成报名。',
+  },
+] as const
+
+const DEFAULT_COVERS = [
+  '/mascot-atmosphere-wide.png',
+  '/mascot-cool-sunglasses.png',
+  '/logo.png',
+] as const
+
+const pickRandomCover = () =>
+  DEFAULT_COVERS[Math.floor(Math.random() * DEFAULT_COVERS.length)]
 
 onMounted(() => {
   void appList.fetchMyApps().catch(() => {})
   void appList.fetchGoodApps().catch(() => {})
 })
 
-const fillSuggestion = (text: string) => {
-  prompt.value = text
+const fillSuggestion = (promptText: string) => {
+  prompt.value = promptText
 }
 
 const onSubmit = async () => {
@@ -32,11 +62,11 @@ const onSubmit = async () => {
 
   creating.value = true
   try {
-    const res = await addApp({ initPrompt })
+    const res = await addApp({ initPrompt, cover: pickRandomCover() })
     if (res.data.code === 0 && res.data.data != null) {
       const id = res.data.data
       appChat.prepareCreate(id, initPrompt)
-      // 异步生成 AI 名称
+      // 异步生成 AI 名称（fire-and-forget）
       appChat.generateAndUpdateName(id)
       await router.push(`/app/chat/${id}`)
       void appList.fetchMyApps().catch(() => {})
@@ -50,7 +80,7 @@ const onSubmit = async () => {
   }
 }
 
-const onItemClick = (app: API.AppVO) => {
+const onViewChat = (app: API.AppVO) => {
   if (app.id == null) return
   void router.push(`/app/chat/${app.id}`)
 }
@@ -101,12 +131,13 @@ const onGoodSearch = () => {
       <div class="suggestions">
         <button
           v-for="item in SUGGESTIONS"
-          :key="item"
+          :key="item.label"
           type="button"
           class="suggestion-tag"
-          @click="fillSuggestion(item)"
+          :title="item.prompt"
+          @click="fillSuggestion(item.prompt)"
         >
-          {{ item }}
+          {{ item.label }}
         </button>
       </div>
     </section>
@@ -125,7 +156,7 @@ const onGoodSearch = () => {
         @update:page-num="onMyPageNumUpdate"
         @update:keyword="onMyKeywordUpdate"
         @search="onMySearch"
-        @item-click="onItemClick"
+        @view-chat="onViewChat"
       />
 
       <AppCardList
@@ -141,7 +172,7 @@ const onGoodSearch = () => {
         @update:page-num="onGoodPageNumUpdate"
         @update:keyword="onGoodKeywordUpdate"
         @search="onGoodSearch"
-        @item-click="onItemClick"
+        @view-chat="onViewChat"
       />
     </section>
   </div>

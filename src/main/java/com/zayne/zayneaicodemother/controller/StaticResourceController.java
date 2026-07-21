@@ -19,42 +19,37 @@ import java.io.File;
 @RequestMapping("/static")
 public class StaticResourceController {
 
-    // 应用生成根目录（用于浏览）
-    private static final String PREVIEW_ROOT_DIR = AppConstant.CODE_OUTPUT_ROOT_DIR;
-
     /**
-     * 提供静态资源访问，支持目录重定向
-     * 访问格式：http://localhost:8123/api/static/{deployKey}[/{fileName}]
+     * 提供静态资源访问，支持目录重定向。
+     * <p>
+     * 对话预览：http://localhost:8123/api/static/{codeGenType}_{appId}/
+     * 部署作品：http://localhost:8123/api/static/{deployKey}/
+     * 优先从部署目录读取，其次从生成目录读取。
      */
-    @GetMapping("/{deployKey}/**")
+    @GetMapping("/{key}/**")
     public ResponseEntity<Resource> serveStaticResource(
-            @PathVariable String deployKey,
+            @PathVariable String key,
             HttpServletRequest request) {
         try {
-            // 获取资源路径
             String resourcePath = (String) request.getAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
-            resourcePath = resourcePath.substring(("/static/" + deployKey).length());
-            // 如果是目录访问（不带斜杠），重定向到带斜杠的URL
+            resourcePath = resourcePath.substring(("/static/" + key).length());
             if (resourcePath.isEmpty()) {
                 HttpHeaders headers = new HttpHeaders();
                 headers.add("Location", request.getRequestURI() + "/");
                 return new ResponseEntity<>(headers, HttpStatus.MOVED_PERMANENTLY);
             }
-            // 默认返回 index.html
             if (resourcePath.equals("/")) {
                 resourcePath = "/index.html";
             }
-            // 构建文件路径
-            String filePath = PREVIEW_ROOT_DIR + "/" + deployKey + resourcePath;
-            File file = new File(filePath);
-            // 检查文件是否存在
-            if (!file.exists()) {
+
+            File file = resolveFile(key, resourcePath);
+            if (file == null || !file.exists() || !file.isFile()) {
                 return ResponseEntity.notFound().build();
             }
-            // 返回文件资源
+
             Resource resource = new FileSystemResource(file);
             return ResponseEntity.ok()
-                    .header("Content-Type", getContentTypeWithCharset(filePath))
+                    .header("Content-Type", getContentTypeWithCharset(file.getAbsolutePath()))
                     .body(resource);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
@@ -62,14 +57,26 @@ public class StaticResourceController {
     }
 
     /**
-     * 根据文件扩展名返回带字符编码的 Content-Type
+     * 部署目录优先，找不到再回落到生成目录（预览）
      */
+    private File resolveFile(String key, String resourcePath) {
+        File deployFile = new File(AppConstant.CODE_DEPLOY_ROOT_DIR + "/" + key + resourcePath);
+        if (deployFile.exists() && deployFile.isFile()) {
+            return deployFile;
+        }
+        File outputFile = new File(AppConstant.CODE_OUTPUT_ROOT_DIR + "/" + key + resourcePath);
+        if (outputFile.exists() && outputFile.isFile()) {
+            return outputFile;
+        }
+        return null;
+    }
+
     private String getContentTypeWithCharset(String filePath) {
         if (filePath.endsWith(".html")) return "text/html; charset=UTF-8";
         if (filePath.endsWith(".css")) return "text/css; charset=UTF-8";
         if (filePath.endsWith(".js")) return "application/javascript; charset=UTF-8";
         if (filePath.endsWith(".png")) return "image/png";
-        if (filePath.endsWith(".jpg")) return "image/jpeg";
+        if (filePath.endsWith(".jpg") || filePath.endsWith(".jpeg")) return "image/jpeg";
         return "application/octet-stream";
     }
 }

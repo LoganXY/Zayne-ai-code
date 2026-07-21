@@ -7,6 +7,12 @@ import {
   updateAppByAdmin,
 } from '@/api/appController.ts'
 import { formatDateTime } from '@/utils/time.ts'
+import { CODE_GEN_TYPE_OPTIONS, getCodeGenTypeText } from '@/constants/codeGenType.ts'
+import {
+  DEFAULT_PRIORITY,
+  FEATURED_PRIORITY,
+  isFeaturedApp,
+} from '@/constants/app.ts'
 
 const columns = [
   {
@@ -47,7 +53,7 @@ const columns = [
   {
     title: '操作',
     key: 'action',
-    width: 200,
+    width: 260,
   },
 ]
 
@@ -107,12 +113,12 @@ const doReset = () => {
   fetchData()
 }
 
-const doEdit = (id?: number) => {
+const doEdit = (id?: number | string) => {
   if (id == null) return
   window.open(`/app/edit/${id}`, '_blank')
 }
 
-const doDelete = async (id?: number) => {
+const doDelete = async (id?: number | string) => {
   if (id == null) return
   const res = await deleteAppByAdmin({ id })
   if (res.data.code === 0) {
@@ -126,14 +132,25 @@ const doDelete = async (id?: number) => {
   }
 }
 
-const doFeature = async (id?: number) => {
+const doFeature = async (id?: number | string) => {
   if (id == null) return
-  const res = await updateAppByAdmin({ id, priority: 99 })
+  const res = await updateAppByAdmin({ id, priority: FEATURED_PRIORITY })
   if (res.data.code === 0) {
     message.success('已设为精选')
     fetchData()
   } else {
     message.error('精选失败，' + res.data.message)
+  }
+}
+
+const doUnfeature = async (id?: number | string) => {
+  if (id == null) return
+  const res = await updateAppByAdmin({ id, priority: DEFAULT_PRIORITY })
+  if (res.data.code === 0) {
+    message.success('已取消精选')
+    fetchData()
+  } else {
+    message.error('取消精选失败，' + res.data.message)
   }
 }
 
@@ -167,11 +184,12 @@ onMounted(() => {
           />
         </a-form-item>
         <a-form-item label="生成类型">
-          <a-input
+          <a-select
             v-model:value="searchParams.codeGenType"
             allow-clear
-            placeholder="如 multi_file"
-            style="width: 140px"
+            placeholder="选择生成类型"
+            style="width: 180px"
+            :options="[...CODE_GEN_TYPE_OPTIONS]"
           />
         </a-form-item>
         <a-form-item label="用户 ID">
@@ -212,10 +230,10 @@ onMounted(() => {
             <span v-else>-</span>
           </template>
           <template v-else-if="column.dataIndex === 'codeGenType'">
-            {{ record.codeGenType || '-' }}
+            {{ getCodeGenTypeText(record.codeGenType) }}
           </template>
           <template v-else-if="column.dataIndex === 'priority'">
-            <a-tag v-if="(record.priority ?? 0) >= 99" color="gold">精选</a-tag>
+            <a-tag v-if="isFeaturedApp(record.priority)" color="gold">精选</a-tag>
             <span v-else>{{ record.priority ?? 0 }}</span>
           </template>
           <template v-else-if="column.dataIndex === 'createTime'">
@@ -225,12 +243,20 @@ onMounted(() => {
             <a-space>
               <a-button type="link" size="small" @click="doEdit(record.id)">编辑</a-button>
               <a-button
-                v-if="(record.priority ?? 0) < 99"
+                v-if="!isFeaturedApp(record.priority)"
                 type="link"
                 size="small"
                 @click="doFeature(record.id)"
               >
                 精选
+              </a-button>
+              <a-button
+                v-else
+                type="link"
+                size="small"
+                @click="doUnfeature(record.id)"
+              >
+                取消精选
               </a-button>
               <a-popconfirm
                 title="确定删除该应用吗？"

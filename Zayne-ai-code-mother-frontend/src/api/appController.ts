@@ -101,6 +101,17 @@ export async function chatToGenCode(
   })
 }
 
+/** AI 生成应用名称 POST /app/generate-name/{appId} */
+export async function generateAppName(
+  params: API.generateAppNameParams,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseString>(`/app/generate-name/${params.appId}`, {
+    method: 'POST',
+    ...(options || {}),
+  })
+}
+
 /** 此处后端没有提供注释 POST /app/delete */
 export async function deleteApp(body: API.DeleteRequest, options?: { [key: string]: any }) {
   return request<API.BaseResponseBoolean>('/app/delete', {
@@ -121,17 +132,6 @@ export async function deployApp(body: API.AppDeployRequest, options?: { [key: st
       'Content-Type': 'application/json',
     },
     data: body,
-    ...(options || {}),
-  })
-}
-
-/** AI 生成应用名称 POST /app/generate-name/{appId} */
-export async function generateAppName(
-  params: API.generateAppNameParams,
-  options?: { [key: string]: any }
-) {
-  return request<API.BaseResponseString>(`/app/generate-name/${params.appId}`, {
-    method: 'POST',
     ...(options || {}),
   })
 }

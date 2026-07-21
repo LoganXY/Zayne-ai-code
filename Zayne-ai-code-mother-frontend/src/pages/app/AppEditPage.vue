@@ -1,54 +1,57 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { getAppVoById, updateApp, updateAppByAdmin } from '@/api/appController.ts'
+import { useRouteAppId } from '@/composables/useRouteAppId.ts'
 import { useLoginUserStore } from '@/stores/loginUser.ts'
+import { getCodeGenTypeText } from '@/constants/codeGenType.ts'
 
-const CODE_GEN_TYPE_LABEL: Record<string, string> = {
-  multi_file: '原生多文件模式',
-  html: '原生 HTML 模式',
-}
-
-const route = useRoute()
 const router = useRouter()
 const loginUserStore = useLoginUserStore()
 
 const loading = ref(false)
 const submitting = ref(false)
 const appId = ref<string>('')
-const appDetail = ref<API.AppVO | null>(null)
 
 const formState = reactive({
   appName: '',
   cover: '',
-  priority: 0,
+  priority: 0 as number,
+  initPrompt: '',
+  codeGenType: '',
+  deployKey: '',
 })
 
 const isAdmin = computed(() => loginUserStore.loginUser.userRole === 'admin')
 
-const routeAppId = computed(() => {
-  const raw = route.params.id
-  const id = Array.isArray(raw) ? raw[0] : raw
-  return id && String(id).trim() ? String(id) : ''
-})
+const routeAppId = useRouteAppId()
 
-const codeGenTypeLabel = computed(() => {
-  const type = appDetail.value?.codeGenType ?? ''
-  return CODE_GEN_TYPE_LABEL[type] || type || '-'
-})
+const codeGenTypeLabel = computed(() => getCodeGenTypeText(formState.codeGenType))
 
 const fillForm = (app: API.AppVO) => {
-  appDetail.value = app
   formState.appName = app.appName ?? ''
   formState.cover = app.cover ?? ''
   formState.priority = app.priority ?? 0
+  formState.initPrompt = app.initPrompt ?? ''
+  formState.codeGenType = app.codeGenType ?? ''
+  formState.deployKey = app.deployKey ?? ''
+}
+
+const goBack = () => {
+  if (window.history.length > 1) {
+    router.back()
+  } else if (isAdmin.value) {
+    void router.replace('/admin/appManage')
+  } else {
+    void router.replace('/')
+  }
 }
 
 const loadApp = async (id: string) => {
   if (!id) {
     message.error('应用 ID 无效')
-    router.replace('/')
+    goBack()
     return
   }
   appId.value = id
@@ -62,13 +65,13 @@ const loadApp = async (id: string) => {
     const res = await getAppVoById({ id })
     if (res.data.code !== 0 || !res.data.data) {
       message.error('获取应用失败，' + res.data.message)
-      router.replace('/')
+      goBack()
       return
     }
     const app = res.data.data
     if (!isAdmin.value && app.userId !== loginUserStore.loginUser.id) {
       message.error('无权限')
-      router.replace('/')
+      goBack()
       return
     }
     fillForm(app)
@@ -95,7 +98,7 @@ const handleSubmit = async () => {
       })
       if (res.data.code === 0) {
         message.success('保存成功')
-        router.back()
+        goBack()
       } else {
         message.error('保存失败，' + res.data.message)
       }
@@ -103,10 +106,11 @@ const handleSubmit = async () => {
       const res = await updateApp({
         id: appId.value,
         appName: formState.appName.trim(),
+        cover: formState.cover.trim() || undefined,
       })
       if (res.data.code === 0) {
         message.success('保存成功')
-        router.back()
+        goBack()
       } else {
         message.error('保存失败，' + res.data.message)
       }
@@ -133,6 +137,13 @@ watch(
       </template>
 
       <div class="section-title">基本信息</div>
+      <div class="page-desc">
+        {{
+          isAdmin
+            ? '可修改应用名称、封面与优先级；提示词、生成类型、部署密钥不可修改'
+            : '可修改应用名称与封面；提示词、生成类型、部署密钥不可修改'
+        }}
+      </div>
 
       <a-form
         class="edit-form"
@@ -155,9 +166,21 @@ watch(
           />
         </a-form-item>
 
+        <a-form-item label="封面" name="cover">
+          <a-input
+            v-model:value="formState.cover"
+            placeholder="请输入封面图片 URL"
+            allow-clear
+          />
+        </a-form-item>
+
+        <a-form-item v-if="isAdmin" label="优先级" name="priority">
+          <a-input-number v-model:value="formState.priority" :min="0" style="width: 160px" />
+        </a-form-item>
+
         <a-form-item label="初始提示词">
           <a-textarea
-            :value="appDetail?.initPrompt || ''"
+            :value="formState.initPrompt"
             :rows="4"
             :maxlength="1000"
             show-count
@@ -172,27 +195,14 @@ watch(
         </a-form-item>
 
         <a-form-item label="部署密钥">
-          <a-input :value="appDetail?.deployKey || '-'" disabled />
+          <a-input :value="formState.deployKey || '-'" disabled />
           <div class="field-hint">部署密钥不可修改</div>
         </a-form-item>
-
-        <template v-if="isAdmin">
-          <a-form-item label="封面" name="cover">
-            <a-input
-              v-model:value="formState.cover"
-              placeholder="请输入封面图片 URL"
-              allow-clear
-            />
-          </a-form-item>
-          <a-form-item label="优先级" name="priority">
-            <a-input-number v-model:value="formState.priority" :min="0" style="width: 160px" />
-          </a-form-item>
-        </template>
 
         <a-form-item>
           <a-space>
             <a-button type="primary" html-type="submit" :loading="submitting">保存</a-button>
-            <a-button @click="router.back()">取消</a-button>
+            <a-button @click="goBack">取消</a-button>
           </a-space>
         </a-form-item>
       </a-form>
@@ -218,10 +228,16 @@ watch(
 }
 
 .section-title {
-  margin-bottom: 16px;
+  margin-bottom: 8px;
   color: rgba(0, 0, 0, 0.88);
   font-size: 16px;
   font-weight: 600;
+}
+
+.page-desc {
+  margin-bottom: 20px;
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 14px;
 }
 
 .field-hint {

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import AppCard from './AppCard.vue'
-import FeaturedAppCard from './FeaturedAppCard.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -25,7 +24,7 @@ const emit = defineEmits<{
   'update:pageNum': [value: number]
   'update:keyword': [value: string]
   search: []
-  'item-click': [app: API.AppVO]
+  'view-chat': [app: API.AppVO]
 }>()
 
 const keywordModel = computed({
@@ -41,8 +40,8 @@ const onSearch = () => {
   emit('search')
 }
 
-const onItemClick = (app: API.AppVO) => {
-  emit('item-click', app)
+const onViewChat = (app: API.AppVO) => {
+  emit('view-chat', app)
 }
 </script>
 
@@ -64,8 +63,7 @@ const onItemClick = (app: API.AppVO) => {
       <a-empty v-if="!loading && apps.length === 0" description="暂无应用" />
       <a-row v-else :gutter="[16, 16]">
         <a-col v-for="app in apps" :key="app.id" :xs="24" :sm="12" :md="8">
-          <AppCard v-if="variant === 'mine'" :app="app" @click="onItemClick(app)" />
-          <FeaturedAppCard v-else :app="app" @click="onItemClick(app)" />
+          <AppCard :app="app" :variant="variant" @view-chat="onViewChat(app)" />
         </a-col>
       </a-row>
     </a-spin>
