@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { Modal, message } from 'ant-design-vue'
 import { CloudUploadOutlined, InfoCircleOutlined } from '@ant-design/icons-vue'
 import { storeToRefs } from 'pinia'
-import { deleteApp, deleteAppByAdmin, getAppVoById } from '@/api/appController.ts'
+import { deleteApp, deleteAppByAdmin } from '@/api/appController.ts'
 import AppDetailModal from '@/components/app/AppDetailModal.vue'
 import AppPromptBox from '@/components/app/AppPromptBox.vue'
 import ChatMessageList from '@/components/app/ChatMessageList.vue'
@@ -16,8 +16,15 @@ import { useLoginUserStore } from '@/stores/loginUser.ts'
 const router = useRouter()
 const appChat = useAppChatStore()
 const loginUserStore = useLoginUserStore()
-const { currentApp, messages, streaming, previewReady, previewKey, autoSendInitPrompt } =
-  storeToRefs(appChat)
+const {
+  currentApp,
+  messages,
+  streaming,
+  previewReady,
+  previewKey,
+  historyHasMore,
+  historyLoading,
+} = storeToRefs(appChat)
 
 const prompt = ref('')
 const deploying = ref(false)
@@ -112,6 +119,16 @@ const onDeploy = async () => {
   }
 }
 
+const isOwner = computed(() => {
+  const app = currentApp.value
+  if (!app?.userId || loginUserStore.loginUser.id == null) return false
+  return String(app.userId) === String(loginUserStore.loginUser.id)
+})
+
+const onLoadMore = () => {
+  void appChat.loadMoreHistory()
+}
+
 const initPage = async (id: string) => {
   if (!id) {
     message.error('应用 ID 无效')
@@ -121,19 +138,20 @@ const initPage = async (id: string) => {
 
   prompt.value = ''
 
-  if (String(currentApp.value?.id) === id && autoSendInitPrompt.value) {
-    const res = await getAppVoById({ id })
-    if (res.data.code === 0 && res.data.data) {
-      currentApp.value = { ...currentApp.value, ...res.data.data }
-    }
-    await appChat.maybeAutoSend()
-  } else {
-    await appChat.loadApp(id)
-    // 兜底：如果应用名称看起来像临时名（等于 initPrompt 前 12 字符），触发 AI 命名
-    const app = currentApp.value
-    if (app?.appName && app.initPrompt && app.appName === app.initPrompt.substring(0, 12)) {
-      appChat.generateAndUpdateName(id)
-    }
+  await appChat.loadApp(id)
+  if (!currentApp.value) return
+
+  const historyOk = await appChat.loadChatHistory(id, true)
+
+  // 自己的应用且无历史时，自动发送初始提示词（历史加载失败时不触发，避免重复对话）
+  if (historyOk) {
+    await appChat.maybeAutoSend(isOwner.value)
+  }
+
+  // 兜底：临时名（等于 initPrompt 前 12 字符）时触发 AI 命名
+  const app = currentApp.value
+  if (app?.appName && app.initPrompt && app.appName === app.initPrompt.substring(0, 12)) {
+    void appChat.generateAndUpdateName(id)
   }
 }
 
@@ -174,6 +192,9 @@ watch(
             :streaming="streaming"
             :user-avatar="loginUserStore.loginUser.userAvatar"
             :user-name="loginUserStore.loginUser.userName"
+            :has-more="historyHasMore"
+            :loading-more="historyLoading"
+            @load-more="onLoadMore"
           />
         </div>
         <div class="prompt-wrap">

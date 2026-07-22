@@ -9,31 +9,88 @@ const props = withDefaults(
     streaming?: boolean
     userAvatar?: string
     userName?: string
+    hasMore?: boolean
+    loadingMore?: boolean
   }>(),
   {
     streaming: false,
     userAvatar: '',
     userName: '',
+    hasMore: false,
+    loadingMore: false,
   },
 )
 
+const emit = defineEmits<{
+  'load-more': []
+}>()
+
 const listRef = ref<HTMLElement | null>(null)
+/** 是否贴底滚动（加载更多时临时关闭） */
+const stickToBottom = ref(true)
+let pendingScrollHeight: number | null = null
+
+const scrollToBottom = () => {
+  const el = listRef.value
+  if (el) el.scrollTop = el.scrollHeight
+}
 
 watch(
   () => props.messages,
   async () => {
     await nextTick()
     const el = listRef.value
-    if (el) {
-      el.scrollTop = el.scrollHeight
+    if (!el) return
+
+    if (pendingScrollHeight != null) {
+      el.scrollTop = el.scrollHeight - pendingScrollHeight
+      pendingScrollHeight = null
+      return
+    }
+
+    if (stickToBottom.value) {
+      scrollToBottom()
     }
   },
   { deep: true },
 )
+
+watch(
+  () => props.streaming,
+  (streaming) => {
+    if (streaming) {
+      stickToBottom.value = true
+      void nextTick(scrollToBottom)
+    }
+  },
+)
+
+const onScroll = () => {
+  const el = listRef.value
+  if (!el) return
+  stickToBottom.value = el.scrollHeight - el.scrollTop - el.clientHeight < 80
+}
+
+const onLoadMore = () => {
+  const el = listRef.value
+  if (el) {
+    pendingScrollHeight = el.scrollHeight - el.scrollTop
+  }
+  stickToBottom.value = false
+  emit('load-more')
+}
 </script>
 
 <template>
-  <div ref="listRef" class="chat-message-list">
+  <div ref="listRef" class="chat-message-list" @scroll="onScroll">
+    <div v-if="hasMore" class="load-more">
+      <a-button type="link" size="small" :loading="loadingMore" @click="onLoadMore">
+        加载更多
+      </a-button>
+    </div>
+
+    <a-empty v-if="!messages.length && !loadingMore" description="暂无对话，发送消息开始生成" />
+
     <div
       v-for="(msg, index) in messages"
       :key="msg.id"
@@ -78,6 +135,12 @@ watch(
   height: 100%;
   padding: 16px 20px;
   overflow-y: auto;
+}
+
+.load-more {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0 0;
 }
 
 .message-row {

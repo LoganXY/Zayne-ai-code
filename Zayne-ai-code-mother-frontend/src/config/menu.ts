@@ -29,4 +29,10 @@ export const menuItems: MenuItemConfig[] = [
     path: '/admin/appManage',
     access: 'admin',
   },
+  {
+    key: 'chatManage',
+    label: '对话管理',
+    path: '/admin/chatManage',
+    access: 'admin',
+  },
 ]
