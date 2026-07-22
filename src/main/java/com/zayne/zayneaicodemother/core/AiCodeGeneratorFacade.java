@@ -1,6 +1,7 @@
 package com.zayne.zayneaicodemother.core;
 
 import com.zayne.zayneaicodemother.ai.AiCodeGeneratorService;
+import com.zayne.zayneaicodemother.ai.AiCodeGeneratorServiceFactory;
 import com.zayne.zayneaicodemother.ai.model.HtmlCodeResult;
 import com.zayne.zayneaicodemother.ai.model.MultiFileCodeResult;
 import com.zayne.zayneaicodemother.core.parser.CodeParserExecutor;
@@ -25,7 +26,7 @@ import java.io.File;
 public class AiCodeGeneratorFacade {
 
     @Resource
-    AiCodeGeneratorService aiCodeGeneratorService;
+    AiCodeGeneratorServiceFactory aiCodeGeneratorServiceFactory;
     @Autowired
     private AppMapper appMapper;
 
@@ -41,6 +42,7 @@ public class AiCodeGeneratorFacade {
         if (codeGenTypeEnum == null) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "生成类型为空");
         }
+        AiCodeGeneratorService aiCodeGeneratorService = aiCodeGeneratorServiceFactory.getAiCodeGeneratorService(appId);
         return switch (codeGenTypeEnum) {
             case HTML -> {
                 HtmlCodeResult result = aiCodeGeneratorService.generateHtmlCode(userMessage);
@@ -68,6 +70,7 @@ public class AiCodeGeneratorFacade {
         if (codeGenTypeEnum == null) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "生成类型为空");
         }
+        AiCodeGeneratorService aiCodeGeneratorService = aiCodeGeneratorServiceFactory.getAiCodeGeneratorService(appId);
         return switch (codeGenTypeEnum) {
             case HTML -> {
                 Flux<String> codeStream = aiCodeGeneratorService.generateHtmlCodeStream(userMessage);
