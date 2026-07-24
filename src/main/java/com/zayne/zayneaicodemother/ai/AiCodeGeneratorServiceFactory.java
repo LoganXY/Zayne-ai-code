@@ -34,7 +34,7 @@ public class AiCodeGeneratorServiceFactory {
     private StreamingChatModel openAiStreamingChatModel;
 
     @Resource
-    private StreamingChatModel resoningStreamingChatModel;
+    private StreamingChatModel reasoningStreamingChatModel;
 
     @Resource
     private RedisChatMemoryStore redisChatMemoryStore;
@@ -91,7 +91,7 @@ public class AiCodeGeneratorServiceFactory {
         return switch (codeGenTypeEnum) {
             case VUE_PROJECT ->AiServices.builder(AiCodeGeneratorService.class)
                     .chatMemoryProvider(memoryId -> chatMemory)
-                    .streamingChatModel(resoningStreamingChatModel)
+                    .streamingChatModel(reasoningStreamingChatModel)
                     .tools(new FileWriteTool())
                     .hallucinatedToolNameStrategy(toolExecutionRequest -> ToolExecutionResultMessage.from(
                             toolExecutionRequest, "Error: there is no tool called: " + toolExecutionRequest.name()

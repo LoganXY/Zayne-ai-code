@@ -4,6 +4,7 @@ import com.zayne.zayneaicodemother.ai.model.HtmlCodeResult;
 import com.zayne.zayneaicodemother.ai.model.MultiFileCodeResult;
 import dev.langchain4j.service.MemoryId;
 import dev.langchain4j.service.SystemMessage;
+import dev.langchain4j.service.TokenStream;
 import dev.langchain4j.service.UserMessage;
 import reactor.core.publisher.Flux;
 
@@ -50,8 +51,8 @@ public interface AiCodeGeneratorService {
      * @param userMessage 用户消息
      * @return 生成的代码结果
      */
-    @SystemMessage(fromResource = "prompt/codegen-multi-file-system-prompt.txt")
-    Flux<String> generateVueProjectCodeStream(@MemoryId long appId, @UserMessage String userMessage);
+    @SystemMessage(fromResource = "prompt/codegen-vue-project-system-prompt.txt")
+    TokenStream generateVueProjectCodeStream(@MemoryId long appId, @UserMessage String userMessage);
     /**
      * 根据用户描述生成应用名称
      *
