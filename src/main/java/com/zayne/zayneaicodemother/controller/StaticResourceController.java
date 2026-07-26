@@ -40,6 +40,9 @@ public class StaticResourceController {
             }
             if (resourcePath.equals("/")) {
                 resourcePath = "/index.html";
+            } else if (resourcePath.endsWith("/")) {
+                // 处理子目录请求（如 /dist/），默认返回该目录下的 index.html
+                resourcePath = resourcePath + "index.html";
             }
 
             File file = resolveFile(key, resourcePath);

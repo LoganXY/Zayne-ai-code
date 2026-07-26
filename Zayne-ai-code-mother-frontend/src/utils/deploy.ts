@@ -1,3 +1,5 @@
+import { CodeGenTypeEnum } from '@/constants/codeGenType'
+
 /**
  * 去掉 host 末尾多余斜杠，便于拼接路径
  */
@@ -16,10 +18,13 @@ export function getDeployHost(): string {
 }
 
 /**
- * 生成预览地址：{previewHost}/{codeGenType}_{appId}/
+ * 生成预览地址
+ * - Vue 项目：{previewHost}/{codeGenType}_{appId}/dist/（构建产物在 dist 子目录）
+ * - 其余类型：{previewHost}/{codeGenType}_{appId}/
  */
 export function getPreviewSiteUrl(codeGenType: string, appId: string | number): string {
-  return `${getPreviewHost()}/${codeGenType}_${appId}/`
+  const suffix = codeGenType === CodeGenTypeEnum.VUE_PROJECT ? '/dist' : ''
+  return `${getPreviewHost()}/${codeGenType}_${appId}${suffix}/`
 }
 
 /**

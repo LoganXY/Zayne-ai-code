@@ -3,6 +3,7 @@ HELP.md
 application.yml
 application-local.yml
 tmp
+chromedriver/
 Zayne-ai-code-mother-frontend/public
 
 target/

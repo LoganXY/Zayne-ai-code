@@ -10,6 +10,7 @@ import com.mybatisflex.spring.service.impl.ServiceImpl;
 import com.zayne.zayneaicodemother.contant.AppConstant;
 import com.zayne.zayneaicodemother.ai.AiCodeGeneratorService;
 import com.zayne.zayneaicodemother.core.AiCodeGeneratorFacade;
+import com.zayne.zayneaicodemother.core.builder.VueProjectBuilder;
 import com.zayne.zayneaicodemother.core.handler.StreamHandlerExecutor;
 import com.zayne.zayneaicodemother.exception.BusinessException;
 import com.zayne.zayneaicodemother.exception.ErrorCode;
@@ -24,6 +25,7 @@ import com.zayne.zayneaicodemother.model.vo.AppVO;
 import com.zayne.zayneaicodemother.model.vo.UserVO;
 import com.zayne.zayneaicodemother.service.AppService;
 import com.zayne.zayneaicodemother.service.ChatHistoryService;
+import com.zayne.zayneaicodemother.service.ScreenshotService;
 import com.zayne.zayneaicodemother.service.UserService;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -63,6 +65,12 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
     @Resource
     private StreamHandlerExecutor streamHandlerExecutor;
 
+    @Resource
+    private VueProjectBuilder vueProjectBuilder;
+
+    @Resource
+    private ScreenshotService screenshotService;
+
     @Override
     public Flux<String> chatToGenCode(Long appId, String message, User loginUser) {
         // 1. 校验
@@ -91,46 +99,90 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
 
     @Override
     public String deployApp(Long appId, User loginUser) {
-        // 参数校验
+        // 1. 参数校验
         ThrowUtils.throwIf(appId == null || appId <= 0, ErrorCode.PARAMS_ERROR, "应用 ID 错误");
         ThrowUtils.throwIf(loginUser == null, ErrorCode.PARAMS_ERROR, "用户未登录");
-        // 查询应用信息
+        // 2. 查询应用信息
         App app = this.getById(appId);
         ThrowUtils.throwIf(app == null, ErrorCode.NOT_FOUND_ERROR, "应用不存在");
-        // 权限校验
+        // 3. 权限校验
         if (!app.getUserId().equals(loginUser.getId())) {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权限部署该应用");
         }
-        // 检查是否已有deployKey，若没有生成6位（字母+数字）
+        // 4. 检查是否已有deployKey，若没有生成6位（字母+数字）
         String deployKey = app.getDeployKey();
         if (deployKey == null) {
             deployKey = RandomUtil.randomString(6);
         }
-        // 获取代码生成类型，获取原始代码生成路径
+        // 5. 获取代码生成类型，获取原始代码生成路径
         String codeGenType = app.getCodeGenType();
         String sourceDirname = codeGenType + "_" + appId;
         String sourceDirPath = AppConstant.CODE_OUTPUT_ROOT_DIR + File.separator + sourceDirname;
-        // 检查路径是否存在
+        // 6. 检查路径是否存在
         File sourceDir = new File(sourceDirPath);
         if (!sourceDir.exists() || !sourceDir.isDirectory()) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "应用代码不存在，请先生成代码");
         }
-        // 复制文件到部署布鲁
+        // 7. 如果是 Vue 项目，执行构建
+        CodeGenTypeEnum enumByValue = CodeGenTypeEnum.getEnumByValue(codeGenType);
+        if (enumByValue == CodeGenTypeEnum.VUE_PROJECT) {
+            boolean buildSuccess = vueProjectBuilder.buildProject(sourceDirPath);
+            ThrowUtils.throwIf(!buildSuccess, ErrorCode.SYSTEM_ERROR, "Vue 项目构建失败，请重试");
+            // 检查 dist 目录是否存在
+            File distDir = new File(sourceDirPath, "dist");
+            ThrowUtils.throwIf(!distDir.exists(), ErrorCode.PARAMS_ERROR, "Vue 项目构建完成但未生成 dist 目录");
+            // 构建完成后，复制构建完成的目录
+            sourceDir = distDir;
+        }
+        // 8. 复制文件到部署布鲁
         String deployDirPath = AppConstant.CODE_DEPLOY_ROOT_DIR + File.separator + deployKey;
         try {
             FileUtil.copyContent(sourceDir, new File(deployDirPath), true);
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "部署失败: " + e.getMessage());
         }
-        // 更新数据库
+        // 9. 更新数据库
         App updateApp = new App();
         updateApp.setId(appId);
         updateApp.setDeployKey(deployKey);
         updateApp.setDeployedTime(LocalDateTime.now());
         boolean updateResult = updateById(updateApp);
         ThrowUtils.throwIf(!updateResult, ErrorCode.OPERATION_ERROR, "更新应用部署信息失败");
-        // 返回可访问的URL地址
-        return String.format("%s/%s/", AppConstant.CODE_DEPLOY_HOST, deployKey);
+        // 10. 返回可访问的URL地址
+        String appDeployUrl = String.format("%s/%s/", AppConstant.CODE_DEPLOY_HOST, deployKey);
+        // 11. 异步生成截图并更新应用封面
+        generateAppScreenshotAsync(appId, appDeployUrl);
+        return appDeployUrl;
+    }
+
+    /**
+     * 异步生成应用截图并更新封面
+     * @param appId 应用ID
+     * @param appDeployUrl 应用访问Url
+     */
+    public void generateAppScreenshotAsync(Long appId, String appDeployUrl) {
+        // 使用虚拟线程并执行
+        Thread.startVirtualThread(() -> {
+            try {
+                // 使用截图服务生成截图并上传
+                String screenshotUrl = screenshotService.generateAndUploadScreenshot(appDeployUrl);
+                // 截图失败则保留默认封面，不更新数据库
+                if (StrUtil.isBlank(screenshotUrl)) {
+                    log.warn("应用 {} 截图生成失败，保留默认封面", appId);
+                    return;
+                }
+                // 更新数据库
+                App updateApp = new App();
+                updateApp.setId(appId);
+                updateApp.setCover(screenshotUrl);
+                boolean updated = this.updateById(updateApp);
+                if (!updated) {
+                    log.error("应用 {} 更新封面字段失败", appId);
+                }
+            } catch (Exception e) {
+                log.error("应用 {} 异步截图异常，保留默认封面", appId, e);
+            }
+        });
     }
 
     @Override
