@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { DeleteOutlined, EditOutlined } from '@ant-design/icons-vue'
 import { formatDateTime } from '@/utils/time'
+import { getCodeGenTypeText } from '@/constants/codeGenType'
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     open: boolean
     app?: API.AppVO | null
@@ -29,6 +31,8 @@ const emit = defineEmits<{
 const onOpenChange = (value: boolean) => {
   emit('update:open', value)
 }
+
+const typeLabel = computed(() => getCodeGenTypeText(props.app?.codeGenType))
 </script>
 
 <template>
@@ -41,6 +45,11 @@ const onOpenChange = (value: boolean) => {
     @update:open="onOpenChange"
   >
     <div class="detail-body">
+      <div class="detail-row">
+        <span class="detail-label">生成类型：</span>
+        <a-tag v-if="typeLabel" color="blue">{{ typeLabel }}</a-tag>
+        <span v-else class="detail-value">-</span>
+      </div>
       <div class="detail-row">
         <span class="detail-label">创建者：</span>
         <div class="creator">

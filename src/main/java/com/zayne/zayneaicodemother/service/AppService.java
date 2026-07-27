@@ -2,10 +2,12 @@ package com.zayne.zayneaicodemother.service;
 
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.core.service.IService;
+import com.zayne.zayneaicodemother.model.dto.app.AppAddRequest;
 import com.zayne.zayneaicodemother.model.dto.app.AppQueryRequest;
 import com.zayne.zayneaicodemother.model.entity.App;
 import com.zayne.zayneaicodemother.model.entity.User;
 import com.zayne.zayneaicodemother.model.vo.AppVO;
+import jakarta.servlet.http.HttpServletRequest;
 import reactor.core.publisher.Flux;
 
 import java.util.List;
@@ -26,6 +28,14 @@ public interface AppService extends IService<App> {
      * @return
      */
     Flux<String> chatToGenCode (Long appId, String message, User loginUser);
+
+    /**
+     * 创建应用
+     * @param appAddRequest
+     * @param loginUser
+     * @return
+     */
+    Long createApp(AppAddRequest appAddRequest, User loginUser);
 
     /**
      * 应用部署

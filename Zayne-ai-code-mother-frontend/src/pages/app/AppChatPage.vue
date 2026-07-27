@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Modal, message } from 'ant-design-vue'
-import { CloudUploadOutlined, InfoCircleOutlined } from '@ant-design/icons-vue'
+import { CloudUploadOutlined, DownloadOutlined, InfoCircleOutlined } from '@ant-design/icons-vue'
 import { storeToRefs } from 'pinia'
 import { deleteApp, deleteAppByAdmin } from '@/api/appController.ts'
 import AppDetailModal from '@/components/app/AppDetailModal.vue'
@@ -12,6 +12,8 @@ import AppPreview from '@/components/app/AppPreview.vue'
 import { useRouteAppId } from '@/composables/useRouteAppId.ts'
 import { useAppChatStore } from '@/stores/appChat.ts'
 import { useLoginUserStore } from '@/stores/loginUser.ts'
+import { getCodeGenTypeText } from '@/constants/codeGenType.ts'
+import { downloadAppCodeZip } from '@/utils/download.ts'
 
 const router = useRouter()
 const appChat = useAppChatStore()
@@ -28,6 +30,7 @@ const {
 
 const prompt = ref('')
 const deploying = ref(false)
+const downloading = ref(false)
 const detailOpen = ref(false)
 const deleting = ref(false)
 
@@ -41,6 +44,8 @@ const creatorName = computed(
 const creatorAvatar = computed(
   () => currentApp.value?.user?.userAvatar || loginUserStore.loginUser.userAvatar,
 )
+
+const codeGenTypeLabel = computed(() => getCodeGenTypeText(currentApp.value?.codeGenType))
 
 const canManageApp = computed(() => {
   const app = currentApp.value
@@ -119,6 +124,17 @@ const onDeploy = async () => {
   }
 }
 
+const onDownload = async () => {
+  const id = currentApp.value?.id
+  if (id == null) return
+  downloading.value = true
+  try {
+    await downloadAppCodeZip(String(id))
+  } finally {
+    downloading.value = false
+  }
+}
+
 const isOwner = computed(() => {
   const app = currentApp.value
   if (!app?.userId || loginUserStore.loginUser.id == null) return false
@@ -167,13 +183,22 @@ watch(
 <template>
   <div id="appChatPage">
     <div class="app-toolbar">
-      <div class="app-name">{{ currentApp?.appName || '未命名应用' }}</div>
+      <div class="app-name">
+        {{ currentApp?.appName || '未命名应用' }}
+        <a-tag v-if="codeGenTypeLabel" class="type-tag" color="blue">{{ codeGenTypeLabel }}</a-tag>
+      </div>
       <a-space>
         <a-button @click="openDetail">
           <template #icon>
             <InfoCircleOutlined />
           </template>
           应用详情
+        </a-button>
+        <a-button :loading="downloading" @click="onDownload">
+          <template #icon>
+            <DownloadOutlined />
+          </template>
+          下载代码
         </a-button>
         <a-button type="primary" :loading="deploying" @click="onDeploy">
           <template #icon>
@@ -245,6 +270,9 @@ watch(
 }
 
 .app-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   color: rgba(0, 0, 0, 0.88);
   font-size: 18px;
   font-weight: 600;
