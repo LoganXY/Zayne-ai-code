@@ -2,7 +2,7 @@ package com.zayne.zayneaicodemother.ai;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.zayne.zayneaicodemother.ai.tools.FileWriteTool;
+import com.zayne.zayneaicodemother.ai.tools.*;
 import com.zayne.zayneaicodemother.exception.BusinessException;
 import com.zayne.zayneaicodemother.exception.ErrorCode;
 import com.zayne.zayneaicodemother.model.enums.CodeGenTypeEnum;
@@ -40,7 +40,10 @@ public class AiCodeGeneratorServiceFactory {
     private RedisChatMemoryStore redisChatMemoryStore;
 
     @Resource
-    ChatHistoryService chatHistoryService;
+    private ChatHistoryService chatHistoryService;
+
+    @Resource
+    private ToolManager toolManager;
 
     /**
      * AI 服务实例缓存
@@ -92,7 +95,7 @@ public class AiCodeGeneratorServiceFactory {
             case VUE_PROJECT ->AiServices.builder(AiCodeGeneratorService.class)
                     .chatMemoryProvider(memoryId -> chatMemory)
                     .streamingChatModel(reasoningStreamingChatModel)
-                    .tools(new FileWriteTool())
+                    .tools(toolManager.getAllTools())
                     .hallucinatedToolNameStrategy(toolExecutionRequest -> ToolExecutionResultMessage.from(
                             toolExecutionRequest, "Error: there is no tool called: " + toolExecutionRequest.name()
                     ))
