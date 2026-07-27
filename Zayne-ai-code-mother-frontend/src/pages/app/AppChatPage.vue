@@ -2,7 +2,12 @@
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Modal, message } from 'ant-design-vue'
-import { CloudUploadOutlined, DownloadOutlined, InfoCircleOutlined } from '@ant-design/icons-vue'
+import {
+  CloudUploadOutlined,
+  DownloadOutlined,
+  EditOutlined,
+  InfoCircleOutlined,
+} from '@ant-design/icons-vue'
 import { storeToRefs } from 'pinia'
 import { deleteApp, deleteAppByAdmin } from '@/api/appController.ts'
 import AppDetailModal from '@/components/app/AppDetailModal.vue'
@@ -12,12 +17,22 @@ import AppPreview from '@/components/app/AppPreview.vue'
 import { useRouteAppId } from '@/composables/useRouteAppId.ts'
 import { useAppChatStore } from '@/stores/appChat.ts'
 import { useLoginUserStore } from '@/stores/loginUser.ts'
+import { useVisualEdit } from '@/composables/useVisualEdit.ts'
 import { getCodeGenTypeText } from '@/constants/codeGenType.ts'
 import { downloadAppCodeZip } from '@/utils/download.ts'
 
 const router = useRouter()
 const appChat = useAppChatStore()
 const loginUserStore = useLoginUserStore()
+const {
+  isEditing,
+  selectedElement,
+  enterEditMode,
+  exitEditMode,
+  injectScript,
+  removeScript,
+  buildPromptWithElements,
+} = useVisualEdit()
 const {
   currentApp,
   messages,
@@ -33,6 +48,16 @@ const deploying = ref(false)
 const downloading = ref(false)
 const detailOpen = ref(false)
 const deleting = ref(false)
+
+// iframe 模板引用，用于向预览窗口注入/移除脚本
+const iframeRef = ref<HTMLIFrameElement | null>(null)
+
+const onIframeReady = (iframe: HTMLIFrameElement) => {
+  iframeRef.value = iframe
+  if (isEditing.value) {
+    injectScript(iframe)
+  }
+}
 
 const appId = useRouteAppId()
 
@@ -98,11 +123,31 @@ const onDelete = () => {
   })
 }
 
+const onEnterEdit = () => {
+  if (isEditing.value) {
+    exitEditMode()
+    if (iframeRef.value) removeScript(iframeRef.value)
+  } else {
+    enterEditMode()
+    if (iframeRef.value) injectScript(iframeRef.value)
+  }
+}
+
+
 const onSubmit = async () => {
   const text = prompt.value.trim()
   if (!text) return
+  const needExitEdit = isEditing.value
+  const finalText = needExitEdit ? buildPromptWithElements(text) : text
   prompt.value = ''
-  await appChat.sendMessage(text)
+  await appChat.sendMessage(finalText)
+  // 发送完成后才退出编辑模式，确保预览刷新完成后再清理
+  if (needExitEdit) {
+    exitEditMode()
+    if (iframeRef.value) {
+      removeScript(iframeRef.value)
+    }
+  }
 }
 
 const onDeploy = async () => {
@@ -194,6 +239,16 @@ watch(
           </template>
           应用详情
         </a-button>
+        <a-button
+          :type="isEditing ? 'primary' : 'default'"
+          :disabled="streaming"
+          @click="onEnterEdit"
+        >
+          <template #icon>
+            <EditOutlined />
+          </template>
+          {{ isEditing ? '退出编辑' : '可视化编辑' }}
+        </a-button>
         <a-button :loading="downloading" @click="onDownload">
           <template #icon>
             <DownloadOutlined />
@@ -228,12 +283,23 @@ watch(
             placeholder="请描述你想生成的网站，越详细效果越好哦"
             :loading="streaming"
             :disabled="streaming"
+            :selected-element="selectedElement"
             @submit="onSubmit"
           />
         </div>
       </div>
       <div class="preview-pane">
-        <AppPreview :src="previewSrc" :ready="previewReady" :reload-key="previewKey" />
+        <!-- 编辑模式提示条 -->
+        <div v-if="isEditing" class="edit-hint">
+          <span>点击预览页中的元素进行选择，按 ESC 退出编辑</span>
+        </div>
+        <AppPreview
+          :src="previewSrc"
+          :ready="previewReady"
+          :reload-key="previewKey"
+          :edit-mode="isEditing"
+          @iframe-ready="onIframeReady"
+        />
       </div>
     </div>
 
@@ -311,12 +377,29 @@ watch(
 }
 
 .preview-pane {
+  position: relative;
   flex: 1;
   min-width: 0;
   background: #fff;
   border-radius: 12px;
   border: 1px solid rgba(0, 0, 0, 0.06);
   overflow: hidden;
+}
+
+.edit-hint {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  padding: 6px 14px;
+  background: #1677ff;
+  color: #fff;
+  border-radius: 20px;
+  font-size: 13px;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.3);
 }
 
 @media (max-width: 900px) {

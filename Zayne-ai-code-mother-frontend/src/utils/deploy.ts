@@ -9,12 +9,12 @@ function normalizeHost(host: string): string {
 
 /** 应用生成预览域名（对话页） */
 export function getPreviewHost(): string {
-  return normalizeHost(import.meta.env.VITE_APP_PREVIEW_HOST || 'http://localhost:8123/api/static')
+  return normalizeHost(import.meta.env.VITE_APP_PREVIEW_HOST || '/api/static')
 }
 
 /** 应用部署作品域名（查看作品） */
 export function getDeployHost(): string {
-  return normalizeHost(import.meta.env.VITE_APP_DEPLOY_HOST || 'http://localhost:8123/api/static')
+  return normalizeHost(import.meta.env.VITE_APP_DEPLOY_HOST || '/api/static')
 }
 
 /**
